@@ -2,7 +2,7 @@ import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
+    // kotlin.android sudah built-in di AGP 9.0+
     alias(libs.plugins.kotlin.compose)
 }
 
@@ -15,7 +15,7 @@ val keystoreProperties = Properties().apply {
 
 android {
     namespace = "com.example.ganambro"
-    compileSdk = 36
+    compileSdk = 36 // Android 16 Baklava
 
     buildFeatures {
         buildConfig = true
@@ -23,8 +23,8 @@ android {
 
     defaultConfig {
         applicationId = "com.example.ganambro"
-        minSdk = 24
-        targetSdk = 36
+        minSdk = 23 // Android 6.0 Marshmallow — batas realistis library modern (98.5% coverage)
+        targetSdk = 36 // Android 16 Baklava (Play Store minimum ≥ 35)
         versionCode = 1
         versionName = "1.0"
 
@@ -61,9 +61,8 @@ android {
     }
 }
 
-kotlin {
-    jvmToolchain(17)
-}
+// AGP 9.0+ built-in Kotlin — JDK mengikuti org.gradle.java.home di gradle.properties
+
 
 dependencies {
     implementation(libs.androidx.activity.compose)

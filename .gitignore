@@ -8,3 +8,6 @@
 /keystores/
 
 /app/build/
+
+# Gradle auto-generated
+gradle/gradle-daemon-jvm.properties
