@@ -29,9 +29,12 @@ Ganambro adalah shell Android yang membungkus Google Sites dalam WebView dengan 
 ### Portal Ujian
 
 8. Sebagai Peserta, saya ingin memasukkan Token yang diberikan Pengawas, agar saya bisa masuk ke Mode Ujian.
-9. Sebagai Peserta, jika Token saya tidak valid, saya ingin melihat pesan error yang jelas, agar saya bisa meminta Token baru ke Pengawas.
+9. Sebagai Peserta, jika Token saya tidak valid atau sudah kadaluarsa, saya ingin melihat pesan "Token tidak valid atau sudah kadaluarsa. Silakan minta Token baru ke Pengawas.", agar saya tahu harus minta Token baru.
 
 ### Mode Ujian
+
+9a. Sebagai Peserta, saya ingin layar tetap menyala (tidak mati) selama Mode Ujian, agar saya bisa fokus mengerjakan tanpa menyentuh layar hanya untuk mencegah screen-off.
+9b. Sebagai Peserta, orientasi layar harus dikunci portrait selama Mode Ujian, agar tampilan konsisten.
 
 10. Sebagai Peserta, saya ingin Google Sites/Forms terbuka dalam WebView fullscreen, agar saya bisa mengerjakan ujian.
 11. Sebagai Peserta, saya ingin toolbar browser (Home, Back, Forward, Exit) tersedia di header WebView, agar saya bisa bernavigasi di dalam portal ujian.
@@ -61,10 +64,17 @@ Ganambro adalah shell Android yang membungkus Google Sites dalam WebView dengan 
 ### Petunjuk
 
 25. Sebagai Peserta, saya ingin membaca halaman petunjuk penggunaan aplikasi, agar saya tidak bingung saat ujian.
+26. Sebagai Peserta, saya ingin Petunjuk menjelaskan cara mematikan alarm, menonaktifkan mode senyap/getar, cara keluar normal dari Mode Ujian, dan bahwa Token berlaku 10 menit dari Pengawas, agar ujian tidak terganggu.
+
+### Navigasi & Back Stack
+
+27. Sebagai Peserta, saya tidak bisa menggunakan system back di sebagian besar layar (Login, Petunjuk, PortalUjian, MenuPengawas), agar saya tidak mundur ke layar sebelumnya tanpa izin.
+28. Sebagai Peserta, saya hanya bisa kembali dari Petunjuk dan MenuPengawas lewat tombol "Kembali" eksplisit, agar navigasi terkontrol.
+29. Sebagai Peserta, Portal Ujian adalah jalan satu arah — tidak ada tombol kembali ke Menu, saya harus memasukkan Token yang benar atau keluar aplikasi.
 
 ### Konfigurasi Sekolah
 
-26. Sebagai admin TI sekolah, saya ingin mengatur nama sekolah, nama aplikasi, versi, PIN Pengawas, dan URL portal ujian di build config sebelum build APK, agar satu kode bisa dipakai untuk banyak sekolah.
+30. Sebagai admin TI sekolah, saya ingin mengatur nama sekolah, nama aplikasi, versi, PIN Pengawas, dan URL portal ujian di build config sebelum build APK, agar satu kode bisa dipakai untuk banyak sekolah.
 
 ## Implementation Decisions
 
@@ -80,6 +90,8 @@ Ganambro adalah shell Android yang membungkus Google Sites dalam WebView dengan 
 - Token = SHA-256(SCHOOL_NAME + APP_NAME + APP_VERSION + roundedTimestamp).
 - `roundedTimestamp = (epochSeconds / 600) * 600` — floor ke window 10 menit.
 - Satu modul `Token` dengan dua operasi: `generate()` dan `validate(input)`. Rounding, salt, SHA-256 adalah implementation detail.
+- Token ditampilkan sebagai uppercase hex (0-9 A-F), 64 karakter, tanpa tombol Copy/Share.
+- Error validasi: "Token tidak valid atau sudah kadaluarsa. Silakan minta Token baru ke Pengawas."
 
 Precision note — the Token module's interface:
 ```kotlin
@@ -138,10 +150,34 @@ Lima field build-time di `build.gradle.kts`:
 - Chrome Custom Tab membuka `accounts.google.com`.
 - Auto-close setelah sesi tertanam.
 - Tombol Skip untuk lewati login.
+- Tidak ada fallback jika Chrome tidak terinstal (Chrome hampir selalu bawaan di device Indonesia).
+
+### Navigasi & System Back
+
+- System back diblokir di: Login, Petunjuk, PortalUjian, MenuPengawas (hanya tombol eksplisit).
+- System back di Menu: `finishAffinity()` — langsung keluar aplikasi.
+- System back di ModeUjian: dianggap curang (GESTURE_BACK).
+- Petunjuk dan MenuPengawas: tombol "Kembali" eksplisit ke Menu.
+- PortalUjian: dead end — tidak ada tombol kembali, hanya input Token.
+
+### Isi Petunjuk
+
+Halaman Petunjuk wajib memuat instruksi:
+- Matikan alarm sebelum ujian.
+- Nonaktifkan mode senyap/getar — warning sound harus terdengar.
+- Jangan tinggalkan aplikasi selama ujian.
+- Token didapat dari Pengawas, berlaku 10 menit.
+- Cara keluar normal: tombol Exit → ketik "exit".
+- Kalau keluar paksa, aplikasi akan bunyi keras dan hilang dari recent apps.
+
+### Tampilan Token
+
+- Token ditampilkan sebagai uppercase hex (0-9 A-F), 64 karakter SHA-256.
+- Teks biasa dalam box — tanpa tombol Copy atau Share. Token disampaikan lisan atau ditulis di papan tulis oleh Pengawas.
 
 ### Permission
 
-- `ACCESS_FINE_LOCATION` — runtime permission dialog di Splash. Ditolak → error + tombol keluar.
+- `ACCESS_FINE_LOCATION` — runtime permission dialog di Splash. Ditolak → langsung error + tombol keluar (tidak ada retry loop).
 - Sisanya normal permissions.
 
 ## Testing Decisions
@@ -181,6 +217,6 @@ Lima field build-time di `build.gradle.kts`:
 
 - APK dibuild per sekolah dengan mengubah BuildConfig fields. Tidak ada mekanisme konfigurasi runtime.
 - PIN Menu Pengawas hardcoded di BuildConfig — akan diganti setiap rilis versi baru.
-- Chrome Custom Tab mengandalkan Chrome terinstal di device Peserta. Fallback ke WebView biasa TBD.
+- Chrome Custom Tab mengandalkan Chrome terinstal di device Peserta (bawaan di device Indonesia). Tanpa Chrome, tombol login tidak muncul — Peserta harus Skip.
 - Screen pinning bisa di-unpin manual (back+overview) di device tanpa device owner — inilah alasan Token 10 menit sebagai rem prosedural.
 - Semua file di `feature/` ditulis dalam Bahasa Inggris (kode), pesan error untuk Peserta ditulis dalam Bahasa Indonesia.
