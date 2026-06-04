@@ -4,84 +4,69 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.ganambro.feature.precheck.PrecheckRegistry
 import com.example.ganambro.feature.precheck.PrecheckResult
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-
-data class SplashUiState(
-    val lines: List<TerminalLine> = emptyList(),
-    val isComplete: Boolean = false,
-    val hasError: Boolean = false,
-    val errorMessage: String? = null,
-)
-
-data class TerminalLine(
-    val text: String,
-    val status: TerminalStatus,
-)
-
-enum class TerminalStatus { RUNNING, OK, FAIL }
 
 class SplashViewModel(
     private val precheckRegistry: PrecheckRegistry,
+    private val scope: CoroutineScope? = null,
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(SplashUiState())
-    val uiState: StateFlow<SplashUiState> = _uiState
+    private val actualScope: CoroutineScope = scope ?: viewModelScope
 
-    init {
-        runChecks()
+    sealed class UiState {
+        data class Checking(
+            val label: String,
+            val done: List<String>,
+        ) : UiState()
+
+        data class AllPassed(
+            val messages: List<String>,
+        ) : UiState()
+
+        data class Failed(
+            val messages: List<String>,
+            val errorMessage: String,
+        ) : UiState()
     }
 
-    private fun runChecks() {
-        viewModelScope.launch {
-            val checks = listOf("Internet", "GPS", "Bluetooth")
-            var hasFailure = false
-            var failedMessage: String? = null
+    private val _state = MutableStateFlow<UiState>(
+        UiState.Checking(label = "Internet", done = emptyList())
+    )
+    val state: StateFlow<UiState> = _state.asStateFlow()
 
-            // Run sequential checks with terminal-style delays
+    fun startChecks() {
+        actualScope.launch {
+            val names = precheckRegistry.checkNames()
             val results = precheckRegistry.runAll()
+            val passedNames = mutableListOf<String>()
 
             for ((index, result) in results.withIndex()) {
-                val checkName = checks[index]
-                val status = when (result) {
-                    is PrecheckResult.Pass -> TerminalStatus.OK
+                passedNames.add(names[index])
+                when (result) {
+                    is PrecheckResult.Pass -> {
+                        val nextIndex = index + 1
+                        if (nextIndex < names.size) {
+                            _state.value = UiState.Checking(
+                                label = names[nextIndex],
+                                done = passedNames.toList(),
+                            )
+                        }
+                    }
                     is PrecheckResult.Fail -> {
-                        hasFailure = true
-                        failedMessage = result.message
-                        TerminalStatus.FAIL
+                        _state.value = UiState.Failed(
+                            messages = passedNames,
+                            errorMessage = result.message,
+                        )
+                        return@launch
                     }
                 }
-
-                // Typing animation: show RUNNING first
-                _uiState.value = _uiState.value.copy(
-                    lines = _uiState.value.lines + TerminalLine("> Memeriksa $checkName...", TerminalStatus.RUNNING)
-                )
-                delay(800) // simulate check time
-
-                // Show result
-                _uiState.value = _uiState.value.copy(
-                    lines = _uiState.value.lines.dropLast(1) +
-                            TerminalLine("> Memeriksa $checkName...", status)
-                )
-                delay(400)
-
-                if (hasFailure) break
             }
 
-            if (!hasFailure) {
-                _uiState.value = _uiState.value.copy(
-                    lines = _uiState.value.lines + TerminalLine("> Memulai Ganambro...", TerminalStatus.OK)
-                )
-                delay(600)
-            }
-
-            _uiState.value = _uiState.value.copy(
-                isComplete = true,
-                hasError = hasFailure,
-                errorMessage = failedMessage,
-            )
+            _state.value = UiState.AllPassed(messages = passedNames)
         }
     }
 }

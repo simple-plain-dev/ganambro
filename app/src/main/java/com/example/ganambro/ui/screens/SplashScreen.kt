@@ -1,9 +1,12 @@
 package com.example.ganambro.ui.screens
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
@@ -15,10 +18,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.ganambro.feature.precheck.PrecheckRegistry
 
 @Composable
 fun SplashScreen(
@@ -26,12 +27,17 @@ fun SplashScreen(
     onNavigateToLogin: () -> Unit,
     onExit: () -> Unit,
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val state by viewModel.state.collectAsState()
 
-    LaunchedEffect(uiState.isComplete) {
-        if (uiState.isComplete && !uiState.hasError) {
-            onNavigateToLogin()
+    LaunchedEffect(state) {
+        when (val s = state) {
+            is SplashViewModel.UiState.AllPassed -> onNavigateToLogin()
+            else -> {} // wait
         }
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.startChecks()
     }
 
     Box(
@@ -42,45 +48,75 @@ fun SplashScreen(
     ) {
         Column(
             modifier = Modifier.align(Alignment.TopStart),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            uiState.lines.forEach { line ->
-                AnimatedVisibility(visible = true, enter = fadeIn()) {
+            when (val s = state) {
+                is SplashViewModel.UiState.Checking -> {
+                    // Show completed checks
+                    s.done.forEach { name ->
+                        Text(
+                            text = "> Memeriksa $name... ✅",
+                            color = Color(0xFF00FF00),
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 14.sp,
+                        )
+                    }
+                    // Show current check
                     Text(
-                        text = when (line.status) {
-                            TerminalStatus.RUNNING -> "${line.text} ⏳"
-                            TerminalStatus.OK -> "${line.text} ✅"
-                            TerminalStatus.FAIL -> "${line.text} ❌"
-                        },
-                        color = when (line.status) {
-                            TerminalStatus.RUNNING -> Color(0xFFB0B0B0)
-                            TerminalStatus.OK -> Color(0xFF00FF00)
-                            TerminalStatus.FAIL -> Color(0xFFFF4444)
-                        },
+                        text = "> Memeriksa ${s.label}... ⏳",
+                        color = Color(0xFFB0B0B0),
                         fontFamily = FontFamily.Monospace,
                         fontSize = 14.sp,
-                        fontWeight = FontWeight.Normal,
                     )
+                }
+                is SplashViewModel.UiState.AllPassed -> {
+                    s.messages.forEach { name ->
+                        Text(
+                            text = "> Memeriksa $name... ✅",
+                            color = Color(0xFF00FF00),
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 14.sp,
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "> Memulai Ganambro...",
+                        color = Color(0xFF00FF00),
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 14.sp,
+                    )
+                }
+                is SplashViewModel.UiState.Failed -> {
+                    s.messages.forEach { name ->
+                        Text(
+                            text = "> Memeriksa $name... ❌",
+                            color = Color(0xFFFF4444),
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 14.sp,
+                        )
+                    }
                 }
             }
         }
 
         // Error state with exit button
-        if (uiState.hasError && uiState.isComplete) {
+        if (state is SplashViewModel.UiState.Failed) {
+            val failed = state as SplashViewModel.UiState.Failed
             Column(
-                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 48.dp),
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 48.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Text(
-                    text = uiState.errorMessage ?: "Prasyarat tidak terpenuhi",
+                    text = failed.errorMessage,
                     color = Color(0xFFFF4444),
                     fontFamily = FontFamily.Monospace,
                     fontSize = 14.sp,
                 )
+                Spacer(modifier = Modifier.height(16.dp))
                 Button(
                     onClick = onExit,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF444444))
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF444444)),
                 ) {
                     Text("Keluar", fontFamily = FontFamily.Monospace, color = Color.White)
                 }

@@ -19,7 +19,8 @@ class PrecheckRegistry {
      * Run all registered checks sequentially.
      * Stops at the first failure.
      *
-     * @return list of [PrecheckResult] — each entry corresponds to one check.
+     * @return list of [PrecheckResult] — each entry corresponds to one check,
+     *         in registration order.
      */
     suspend fun runAll(): List<PrecheckResult> {
         val results = mutableListOf<PrecheckResult>()
@@ -30,4 +31,7 @@ class PrecheckRegistry {
         }
         return results
     }
+
+    /** Returns the names of registered checks in registration order. */
+    fun checkNames(): List<String> = checks.map { it.name }
 }
