@@ -12,10 +12,17 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.ganambro.feature.gesture.MenuPengawasGesture
+import com.example.ganambro.feature.gesture.GestureState
+import com.example.ganambro.feature.gesture.Target
 import com.example.ganambro.feature.precheck.*
 import com.example.ganambro.feature.volume.VolumeManager
 import com.example.ganambro.ui.screens.*
@@ -78,9 +85,36 @@ class MainActivity : ComponentActivity() {
                     }
 
                     composable("menu") {
+                        val gesture = remember { MenuPengawasGesture() }
+                        var gestureState by remember { mutableStateOf(GestureState.IDLE) }
+
+                        LaunchedEffect(gestureState) {
+                            if (gestureState == GestureState.UNLOCKED) {
+                                navController.navigate("menuPengawas")
+                                gesture.reset()
+                                gestureState = GestureState.IDLE
+                            }
+                        }
+
                         MenuScreen(
                             onPortalUjian = { /* Slice 5a */ },
                             onPetunjuk = { /* Slice 4 */ },
+                            onLogoClick = {
+                                gestureState = gesture.onTap(Target.LOGO)
+                            },
+                            onPetunjukButtonClick = {
+                                gestureState = gesture.onTap(Target.PETUNJUK)
+                            },
+                        )
+                    }
+
+                    composable("menuPengawas") {
+                        MenuPengawasScreen(
+                            onBackToMenu = {
+                                navController.navigate("menu") {
+                                    popUpTo("menu") { inclusive = true }
+                                }
+                            },
                         )
                     }
                 }

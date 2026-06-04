@@ -16,7 +16,7 @@ object Token {
 
     /**
      * Generate a Token valid for the current 10-minute window.
-     * Token = SHA-256(SCHOOL_NAME + APP_NAME + APP_VERSION + roundedTimestamp)
+     * Token = first 8 chars of SHA-256(SCHOOL_NAME + APP_NAME + APP_VERSION + roundedTimestamp)
      */
     fun generate(
         schoolName: String,
@@ -26,7 +26,7 @@ object Token {
     ): String {
         val salt = "$schoolName$appName$appVersion"
         val rounded = roundToWindow(timestampSeconds)
-        return sha256("$salt$rounded")
+        return sha256("$salt$rounded").take(8)
     }
 
     /**
@@ -53,6 +53,6 @@ object Token {
     private fun sha256(input: String): String {
         val digest = MessageDigest.getInstance("SHA-256")
         val bytes = digest.digest(input.toByteArray())
-        return bytes.joinToString("") { "%02x".format(it) }
+        return bytes.joinToString("") { "%02X".format(it) }
     }
 }
