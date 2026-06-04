@@ -52,8 +52,8 @@ Memetakan setiap fitur MVP ke file UI, feature, resource, dan BuildConfig yang t
 
 | Layer | File | Keterangan |
 |-------|------|------------|
-| UI | `ui/screens/PortalUjianScreen.kt` | Input field token + tombol "Masuk Ujian" |
-| Feature | `feature/token/Token.kt` | `generate(): String`, `validate(input: String): Boolean` — rounding + salt + SHA-256 di implementation |
+| UI | `ui/screens/PortalUjianScreen.kt` | Input field token (8-char hex) + tombol "Masuk Ujian" |
+| Feature | `feature/token/Token.kt` | `generate(): String`, `validate(input: String): Boolean` — menghasilkan 8-char hex dari 8 digit pertama SHA-256 |
 | Resource | `res/values/strings.xml` | Placeholder "Masukkan token", error "Token tidak valid" |
 
 **Salt source:** `BuildConfig.SCHOOL_NAME + BuildConfig.APP_NAME + BuildConfig.APP_VERSION`
@@ -99,8 +99,8 @@ Memetakan setiap fitur MVP ke file UI, feature, resource, dan BuildConfig yang t
 
 | Layer | File | Keterangan |
 |-------|------|------------|
-| UI | `ui/screens/MenuPengawasScreen.kt` | PIN dialog, tombol Generate, tampilan token |
-| Feature | `feature/token/Token.kt` | `generate(): String` — rounding + salt + SHA-256 di implementation |
+| UI | `ui/screens/MenuPengawasScreen.kt` | Screen dengan 2 fase: (1) PIN 6-digit → (2) Generate Token + tampilan 8-char hex. `remember` state, tanpa ViewModel. |
+| Feature | `feature/token/Token.kt` | `generate(): String` — 8-char hex dari 8 digit pertama SHA-256 |
 | Feature | `feature/gesture/MenuPengawasGesture.kt` | State machine — `UNLOCKED` memicu navigasi ke screen ini |
 | Build | `app/build.gradle.kts` | `TEACHER_PIN` field (6-digit PIN, default `"202606"`) |
 | Build | `app/build.gradle.kts` | `SCHOOL_NAME`, `APP_NAME`, `APP_VERSION` (salt) |

@@ -26,6 +26,7 @@ com.example.ganambro
 
 - ViewModels hold UI state and call into `feature/` modules for logic.
 - Composable functions observe ViewModel state — no direct calls to `feature/`.
+- Simple screens with only local `remember` state (e.g., MenuPengawasScreen: PIN + single button) may skip ViewModel. ViewModel is warranted when there's async orchestration, navigation-tied state, or multi-step flows.
 - Theme code lives inside `ui/theme/` and has no dependency on `feature/`.
 - `MainActivity` hosts the NavHost and detects Menu Pengawas gesture at the top level.
 
@@ -128,7 +129,7 @@ com/example/ganambro/
 │       └── ChromeTabLauncher.kt    # CustomTabsIntent wrapper
 ├── feature/
 │   ├── token/
-│   │   └── Token.kt                # Single module: generate() + validate(input)
+│   │   └── Token.kt                # Single module: generate() + validate(input) — 8-char hex
 │   ├── precheck/
 │   │   ├── Precheck.kt             # Interface: name + suspend check(): PrecheckResult
 │   │   ├── PrecheckRegistry.kt     # register(Precheck) + runAll(): List<PrecheckResult>
@@ -163,7 +164,7 @@ Splash ──▶ Login ──▶ Menu ──┬──▶ PortalUjian ──▶ M
 | PortalUjian | From Menu | Token input → validate via `TokenValidator` → ModeUjian on success. |
 | ModeUjian | From PortalUjian | `startLockTask()`, WebView with header toolbar, `FLAG_KEEP_SCREEN_ON`, CheatDetector active. |
 | Petunjuk | From Menu | Scrollable instructions. |
-| MenuPengawas | Gesture from Menu | Tap logo 3× → tap Petunjuk 1× → PIN prompt → Token generator. |
+| MenuPengawas | Gesture from Menu | Tap logo 3× → tap Petunjuk 1× → navigasi ke MenuPengawasScreen (PIN 6-digit, lalu Token generator). Kembali eksplisit ke Menu. |
 
 ### Exit flows
 
@@ -175,13 +176,14 @@ Splash ──▶ Login ──▶ Menu ──┬──▶ PortalUjian ──▶ M
 ## Token design
 
 ```
-Token = SHA-256(salt + roundedTimestamp)
+Token = first 8 chars of SHA-256(salt + roundedTimestamp)
 salt  = SCHOOL_NAME + APP_NAME + APP_VERSION
 roundedTimestamp = (epochSeconds / 600) * 600   // floor to 10-minute window
 ```
 
 - Single module `Token` dengan dua operation: `generate(): String` dan `validate(input: String): Boolean`.
-- Rounding logic, salt assembly, dan SHA-256 adalah implementation detail — caller tidak pernah melihatnya.
+- Hasil: 8 karakter uppercase hex (0-9 A-F) — cukup untuk dibacakan lisan atau ditulis di papan tulis.
+- Rounding logic, salt assembly, SHA-256, dan truncation adalah implementation detail — caller tidak pernah melihatnya.
 - Token valid untuk unlimited uses dalam 10-minute window yang sama.
 - Pengawas membuat token baru ketika window berganti.
 - `validate()` menerima token window saat ini saja — tanpa grace period.
