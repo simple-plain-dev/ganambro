@@ -2,6 +2,7 @@ package com.example.ganambro.ui.screens
 
 import android.app.Activity
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedButton
@@ -32,7 +33,9 @@ fun MenuScreen(
         Text(
             text = "Ganambro",
             style = androidx.compose.material3.MaterialTheme.typography.headlineLarge,
-            modifier = Modifier.padding(bottom = 48.dp),
+            modifier = Modifier
+                .padding(bottom = 48.dp)
+                .clickable { onLogoClick() },
         )
 
         Button(onClick = onPortalUjian, modifier = Modifier.fillMaxWidth()) {

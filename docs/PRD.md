@@ -90,7 +90,7 @@ Ganambro adalah shell Android yang membungkus Google Sites dalam WebView dengan 
 - Token = SHA-256(SCHOOL_NAME + APP_NAME + APP_VERSION + roundedTimestamp).
 - `roundedTimestamp = (epochSeconds / 600) * 600` — floor ke window 10 menit.
 - Satu modul `Token` dengan dua operasi: `generate()` dan `validate(input)`. Rounding, salt, SHA-256 adalah implementation detail.
-- Token ditampilkan sebagai uppercase hex (0-9 A-F), 64 karakter, tanpa tombol Copy/Share.
+- Token ditampilkan sebagai uppercase hex (0-9 A-F), 8 karakter (8 digit pertama SHA-256), tanpa tombol Copy/Share.
 - Error validasi: "Token tidak valid atau sudah kadaluarsa. Silakan minta Token baru ke Pengawas."
 
 Precision note — the Token module's interface:
@@ -172,7 +172,7 @@ Halaman Petunjuk wajib memuat instruksi:
 
 ### Tampilan Token
 
-- Token ditampilkan sebagai uppercase hex (0-9 A-F), 64 karakter SHA-256.
+- Token ditampilkan sebagai uppercase hex (0-9 A-F), 8 karakter (8 digit pertama SHA-256).
 - Teks biasa dalam box — tanpa tombol Copy atau Share. Token disampaikan lisan atau ditulis di papan tulis oleh Pengawas.
 
 ### Permission
