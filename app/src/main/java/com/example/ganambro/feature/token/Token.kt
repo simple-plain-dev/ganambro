@@ -53,6 +53,6 @@ object Token {
     private fun sha256(input: String): String {
         val digest = MessageDigest.getInstance("SHA-256")
         val bytes = digest.digest(input.toByteArray())
-        return bytes.joinToString("") { "%02x".format(it) }
+        return bytes.joinToString("") { "%02X".format(it) }
     }
 }
