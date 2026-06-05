@@ -1,12 +1,14 @@
 # PRD: Ganambro MVP — Kiosk Browser Ujian Sekolah
 
+> Istilah domain yang digunakan dalam dokumen ini — **Peserta, Pengawas, Token, Precheck, Kiosk Mode, Deteksi Kecurangan, Warning Sound, Situs Ujian** dan lainnya — didefinisikan di [CONTEXT.md](../../CONTEXT.md). Keputusan arsitektural yang mendasarinya dicatat di [ADR-0001](../adr/0001-local-token-no-backend.md).
+
 ## Problem Statement
 
 Sekolah menyelenggarakan ujian berbasis Google Form tetapi tidak memiliki cara untuk mencegah Peserta membuka aplikasi lain, mencari jawaban di internet, atau berkomunikasi via headset. Browser biasa tidak bisa mengunci perangkat ke satu halaman ujian. Dibutuhkan aplikasi wrapper browser yang mengunci perangkat selama Ujian, mendeteksi kecurangan, dan mudah digunakan oleh Peserta maupun Pengawas — tanpa memerlukan server backend.
 
 ## Solution
 
-Ganambro adalah aplikasi Android Kiosk Browser. Peserta membuka aplikasi → melewati Precheck (GPS, Bluetooth, headset, volume, internet) → login (opsional) → masuk ke Menu → Pengawas memberikan Token 6-digit → Peserta memasukkan Token → WebView membuka Google Sites yang berisi kumpulan Google Form. Selama Ujian, perangkat dalam mode imersi, deteksi kecurangan aktif, dan navigasi terbatas pada toolbar Home/Back/Forward/Exit. Tidak ada backend — Token divalidasi secara lokal via hashing deterministik.
+Ganambro adalah aplikasi Android Kiosk Browser. Peserta membuka aplikasi → melewati Precheck (GPS, Bluetooth, headset, volume, internet) → login (opsional) → masuk ke Menu → Pengawas memberikan Token 6-digit → Peserta memasukkan Token → WebView membuka Situs Ujian (Google Sites) yang berisi kumpulan Google Form. Selama Ujian, perangkat dalam Kiosk Mode, Deteksi Kecurangan aktif, dan navigasi terbatas pada Toolbar Ujian. Tidak ada backend — Token divalidasi secara lokal via hashing deterministik.
 
 ## User Stories
 
@@ -40,10 +42,10 @@ Ganambro adalah aplikasi Android Kiosk Browser. Peserta membuka aplikasi → mel
 
 ### Kiosk Mode & Deteksi Kecurangan
 19. Sebagai Peserta, selama Ujian saya tidak boleh melihat status bar dan navigation bar Android, agar saya fokus pada soal.
-20. Sebagai Pengawas, saya ingin volume perangkat Peserta selalu dipaksa ke maksimal setiap 10 detik, agar Warning Sound selalu terdengar.
-21. Sebagai Pengawas, jika Peserta mencolok headset saat Ujian, aplikasi harus langsung keluar dan membunyikan Warning Sound 1, agar kecurangan terdeteksi dan terdengar.
-22. Sebagai Pengawas, jika Peserta meninggalkan aplikasi (tekan Home/unpin Kiosk), aplikasi harus mendeteksi, menampilkan popup peringatan, membunyikan Warning Sound 1, dan mengembalikan Peserta ke Menu, agar Peserta harus minta Token lagi.
-23. Sebagai Pengawas, jika Peserta membuka split screen, aplikasi harus mendeteksi, menampilkan popup peringatan, membunyikan Warning Sound 1, dan mengembalikan Peserta ke Menu.
+20. Sistem harus memaksa volume perangkat ke maksimal setiap 10 detik selama Ujian, agar Warning Sound selalu terdengar jika terjadi kecurangan.
+21. Sistem harus mendeteksi headset terpasang selama Ujian — jika terdeteksi, aplikasi langsung keluar dan membunyikan Warning Sound 1.
+22. Sistem harus mendeteksi Peserta meninggalkan aplikasi (tekan Home/unpin Kiosk) — jika terdeteksi, tampilkan popup peringatan, bunyikan Warning Sound 1, dan kembalikan Peserta ke Menu.
+23. Sistem harus mendeteksi split screen — jika terdeteksi, tampilkan popup peringatan, bunyikan Warning Sound 1, dan kembalikan Peserta ke Menu.
 
 ### Pengawas
 24. Sebagai Pengawas, saya ingin akses ke halaman Pengawas tersembunyi — dengan mengklik Logo 3x lalu Petunjuk 1x secara berurutan dari Menu, agar Peserta tidak bisa mengaksesnya secara tidak sengaja.
@@ -63,9 +65,9 @@ Ganambro adalah aplikasi Android Kiosk Browser. Peserta membuka aplikasi → mel
 ## Implementation Decisions
 
 ### Token module — deep, pure domain
-Token generation dan validation diimplementasikan sebagai modul murni tanpa dependensi Android. Interface: `generate(salt: String, timeWindowMinutes: Int): String` dan `validate(token: String, salt: String, timeWindowMinutes: Int): Boolean`. Algoritma: SHA-256(Salt + timestamp UTC dibulatkan ke time window) → ambil 6 karakter alphanumerik pertama → uppercase. Salt dihitung dari `SCHOOL_NAME + APP_NAME + versionName`.
+Token generation dan validation diimplementasikan sebagai modul murni tanpa dependensi Android. Interface: `generate(salt: String, timeWindowMinutes: Int): String` dan `validate(token: String, salt: String, timeWindowMinutes: Int): Boolean`. Salt dihitung dari komponen build.
 
-Mengacu pada ADR-0001: validasi dilakukan lokal tanpa server. Token berlaku penuh selama time window.
+Mengacu pada ADR-0001: validasi dilakukan lokal tanpa server. Token berlaku penuh selama Time Window.
 
 ### Precheck pipeline
 Lima pengecekan (Internet, GPS, Bluetooth, Headset, Volume) dienkapsulasi dalam PrecheckRunner dengan interface tunggal: `suspend fun runChecks(): Flow<CheckResult>`. Setiap cek adalah adapter internal yang menyembunyikan Android API spesifik (ConnectivityManager, LocationManager, BluetoothAdapter, AudioManager). SplashScreen hanya mengobservasi Flow — tidak tahu API apa pun. Pengecekan berjalan sekuensial sesuai urutan.
@@ -100,8 +102,8 @@ Trigger: klik Logo 3x lalu Petunjuk 1x secara berurutan di Menu. Counter reset j
 | SCHOOL_NAME | Komponen Salt |
 | APP_NAME | Komponen Salt |
 | PIN | Akses halaman Pengawas |
-| EXAM_URL | URL Google Sites yang dimuat di WebView Ujian |
-| TOKEN_WINDOW_MINUTES | Durasi time window dalam menit (default 10) |
+| EXAM_URL | Situs Ujian yang dimuat di WebView Ujian |
+| TOKEN_WINDOW_MINUTES | Durasi Time Window dalam menit (default 10) |
 
 APP_VERSION diambil dari `versionName` di build.gradle.
 
