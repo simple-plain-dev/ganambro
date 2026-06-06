@@ -4,156 +4,214 @@ Panduan command-line untuk development Ganambro tanpa Android Studio.
 
 ## Prasyarat
 
-Android SDK sudah terpasang di `C:\Users\SAFRILTH\scoop\apps\android-clt\current`.  
-Set environment variable sebelum menjalankan perintah:
+- `android` CLI: `C:\Users\SAFRILTH\AppData\AndroidCLI\android` (auto-detected)
+- Android SDK: `C:\Users\SAFRILTH\AppData\Local\Android\Sdk`
+- Gradle wrapper: `./gradlew` (di root project)
+
+> **Prioritas**: Selalu gunakan `android` CLI sebagai opsi pertama. Fallback ke `adb`/`avdmanager`/`sdkmanager` hanya jika `android` CLI tidak mencakup use-case.
+
+---
+
+## 1. Informasi Environment
 
 ```bash
-export ANDROID_SDK_ROOT="C:/Users/SAFRILTH/scoop/apps/android-clt/current"
+# Versi CLI dan path SDK
+android info
+# output: sdk: C:\Users\SAFRILTH\AppData\Local\Android\Sdk
+#         version: 1.0.15433482
 ```
 
-## Daftar Perintah
+---
 
-### AVD Manager (mengelola emulator)
+## 2. Emulator Management (`android emulator`)
 
 ```bash
-# Lihat AVD yang tersedia
-"$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/avdmanager.bat" list avd
+# List AVD yang tersedia
+android emulator list
 
-# Lihat target/system image yang terpasang
-"$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/avdmanager.bat" list target
+# Jalankan emulator (blocking — return saat emulator siap)
+android emulator start Medium_Phone_30
 
-# Buat AVD baru (contoh)
-"$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/avdmanager.bat" create avd \
-  -n "Pixel_6_API_35" \
-  -k "system-images;android-35;google_apis_playstore;x86_64" \
-  -d "pixel_6"
+# Jalankan dengan cold boot (tanpa snapshot)
+android emulator start Medium_Phone_30 --cold
+
+# Buat AVD baru dari profile
+android emulator create --list-profiles          # lihat profile tersedia
+android emulator create medium_phone             # buat AVD phone
+
+# Hentikan emulator
+android emulator stop Medium_Phone_30
+
+# Hapus AVD
+android emulator remove Medium_Phone_30
 ```
 
-### SDK Manager (mengelola SDK packages)
+---
+
+## 3. Build & Deploy (`android run`, `android describe`)
 
 ```bash
-# Lihat package yang terpasang
-"$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager.bat" --list
+# Build project (via gradlew)
+cd E:/dev/ujian/ganambro
+./gradlew :app:assembleDebug
 
-# Install system image (contoh)
-"$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager.bat" \
-  "system-images;android-35;google_apis_playstore;x86_64"
+# Deploy APK ke emulator/device
+android run --apks app/build/outputs/apk/debug/app-debug.apk
+
+# Deploy ke device tertentu
+android run --apks app/build/outputs/apk/debug/app-debug.apk --device emulator-5554
+
+# Info project (varian build, path APK)
+android describe --project_dir .
+# output: app:debug → app\build\outputs\apk\debug\app-debug.apk
 ```
 
-### Emulator (menjalankan emulator)
+---
+
+## 4. Layout Inspection (`android layout`)
 
 ```bash
-# Jalankan emulator dengan AVD tertentu
-"$ANDROID_SDK_ROOT/emulator/emulator.exe" -avd Medium_Phone_30 &
-
-# Dengan opsi performa
-"$ANDROID_SDK_ROOT/emulator/emulator.exe" \
-  -avd Medium_Phone_30 \
-  -no-boot-anim \
-  -netdelay none \
-  -netspeed full &
-```
-
-### ADB (Android Debug Bridge)
-
-```bash
-# Tunggu emulator siap
-adb wait-for-device
-
-# Cek status boot
-adb shell getprop sys.boot_completed    # output "1" = siap
-
-# List device
-adb devices
-
-# Install APK
-adb install -r app/build/outputs/apk/debug/app-debug.apk
-
-# Uninstall
-adb uninstall com.example.ganambro
-
-# Buka aplikasi
-adb shell am start -n com.example.ganambro/.MainActivity
-
-# Hentikan aplikasi
-adb shell am force-stop com.example.ganambro
-
-# Screenshot
-adb exec-out screencap -p > screenshot.png
-
-# Lihat log (real-time, filter Ganambro)
-adb logcat -s Ganambro
-
-# Lihat log (dump terakhir)
-adb logcat -d -t 50
-```
-
-### Layout Inspection (android CLI — direkomendasikan)
-
-```bash
-# Lihat layout tree dalam format JSON yang sudah di-prettify
+# Lihat layout tree — JSON, diformat rapi
 android layout --pretty
 
-# Cek perubahan layout sejak dump terakhir (berguna untuk animasi/transisi)
+# Output contoh:
+# [
+#   { "text": "Ganambro Precheck",       "center": "[280,70]"  },
+#   { "text": "✅ Internet: OK",          "center": "[193,176]" },
+#   { "text": "✅ Semua pengecekan berhasil!", "center": "[333,416]" },
+#   { "interactions": ["clickable","focusable"],
+#     "center": "[540,563]" },
+#   { "text": "Lanjut →",                "center": "[540,562]" }
+# ]
+
+# Cek perubahan sejak dump terakhir (untuk animasi/transisi)
 android layout --diff
 
 # Simpan ke file
 android layout -o layout.json --pretty
-
-# Contoh output:
-# [
-#   {
-#     "text": "Login Screen (coming soon)",
-#     "center": "[540,1200]",
-#     "key": 3506402
-#   }
-# ]
-
-# Klik elemen di koordinat center
-adb shell input tap 540 1200
 ```
 
-### Layout Inspection (XML manual — fallback)
+---
+
+## 5. Screenshot & UI Element Targeting (`android screen`)
 
 ```bash
-adb shell uiautomator dump
-MSYS_NO_PATHCONV=1 adb pull /sdcard/window_dump.xml layout.xml
-grep -oP 'text="[^"]*"' layout.xml
+# Screenshot biasa
+android screen capture -o screenshot.png
+
+# Screenshot dengan bounding box bernomor (untuk screen resolve)
+android screen capture --annotate -o annotated.png
+
+# Resolve: substitusi koordinat dari annotated screenshot ke string
+#   Setiap '#N' diganti dengan koordinat center bounding box label N
+#   Contoh: adb shell input tap '#1' → adb shell input tap '540 562'
+android screen resolve --screenshot annotated.png --string "adb shell input tap '#1'"
 ```
 
-### Debugging Crash
+---
+
+## 6. SDK Management (`android sdk`)
 
 ```bash
-# Lihat stack trace crash terakhir
-adb logcat -d -s AndroidRuntime:E | grep -A30 "FATAL"
+# List package terpasang dan tersedia
+android sdk list
 
-# Lihat log spesifik app
+# Install package
+android sdk install "system-images;android-35;google_apis_playstore;x86_64"
+
+# Update semua package
+android sdk update
+
+# Remove package
+android sdk remove "system-images;android-30;google_apis_playstore;x86"
+```
+
+---
+
+## 7. Project Creation (`android create`)
+
+```bash
+# Buat project Android baru
+android create --help
+```
+
+---
+
+## 8. ADB (fallback untuk operasi low-level)
+
+```bash
+# Cek device terhubung
+adb devices
+
+# Install APK (jika android run tidak digunakan)
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+
+# Launch activity
+adb shell am start -n com.example.ganambro/.MainActivity
+
+# Force stop
+adb shell am force-stop com.example.ganambro
+
+# Tap koordinat (dari android layout output)
+adb shell input tap 540 562
+
+# Screenshot (fallback)
+adb exec-out screencap -p > screenshot.png
+
+# Log real-time
+adb logcat -s AndroidRuntime:E
 adb logcat -d --pid=$(adb shell pidof com.example.ganambro)
-
-# Clear log dan lihat real-time
-adb logcat -c && adb logcat -s AndroidRuntime:E
 ```
 
-## Workflow Build & Run Lengkap
+---
+
+## 9. AVD & SDK Manager (fallback CLI tools)
 
 ```bash
-# 1. Set SDK path
-export ANDROID_SDK_ROOT="C:/Users/SAFRILTH/scoop/apps/android-clt/current"
+# Path ke cmdline-tools
+AVDMGR="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/avdmanager.bat"
+SDKMGR="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager.bat"
 
-# 2. Build
+# List AVD
+"$AVDMGR" list avd
+
+# List target/system images
+"$AVDMGR" list target
+
+# Install system image
+"$SDKMGR" --install "system-images;android-35;google_apis_playstore;x86_64"
+
+# Buat AVD
+"$AVDMGR" create avd -n "Test_Device" -k "system-images;android-35;google_apis_playstore;x86_64" -d "pixel_6"
+```
+
+---
+
+## Workflow Lengkap (dengan `android` CLI)
+
+```bash
+# 1. Info environment
+android info
+
+# 2. Start emulator (blocking sampai siap)
+android emulator start Medium_Phone_30 &
+
+# 3. Build
 cd E:/dev/ujian/ganambro
 ./gradlew :app:assembleDebug
 
-# 3. Jalankan emulator (jika belum)
-"$ANDROID_SDK_ROOT/emulator/emulator.exe" -avd Medium_Phone_30 -no-boot-anim &
+# 4. Deploy & run
+android run --apks app/build/outputs/apk/debug/app-debug.apk
 
-# 4. Tunggu boot
-adb wait-for-device && adb shell getprop sys.boot_completed
+# 5. Cek layout
+android layout --pretty
 
-# 5. Install & jalankan
-adb install -r app/build/outputs/apk/debug/app-debug.apk
-adb shell am start -n com.example.ganambro/.MainActivity
+# 6. Interaksi — dapatkan koordinat dari output layout, lalu:
+adb shell input tap <x> <y>
 
-# 6. Screenshot
-adb exec-out screencap -p > screenshot.png
+# 7. Screenshot dengan annotasi
+android screen capture --annotate -o debug.png
+
+# 8. Debug crash
+adb logcat -d -s AndroidRuntime:E | grep "FATAL"
 ```
