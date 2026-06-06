@@ -88,6 +88,46 @@ adb logcat -s Ganambro
 adb logcat -d -t 50
 ```
 
+### Layout Inspection (tanpa Android Studio)
+
+```bash
+# Dump layout hierarchy sebagai XML
+adb shell uiautomator dump
+
+# Pull layout file dari device (gunakan MSYS_NO_PATHCONV di Git Bash)
+MSYS_NO_PATHCONV=1 adb pull /sdcard/window_dump.xml layout.xml
+
+# Prettify XML untuk dibaca manual
+python -c "
+import xml.dom.minidom as md
+dom = md.parse('layout.xml')
+print(dom.toprettyxml(indent='  '))
+" > layout-pretty.xml
+
+# Cari teks/node spesifik
+grep -oP 'text="[^"]*"' layout.xml
+grep -oP 'bounds="\[[^\]]+\]"' layout.xml
+
+# Klik elemen di koordinat tertentu (dari bounds)
+adb shell input tap 540 562
+
+# Klik elemen berdasarkan teks (Android 12+)
+adb shell input keyevent KEYCODE_TAB  # navigasi focus
+```
+
+### Debugging Crash
+
+```bash
+# Lihat stack trace crash terakhir
+adb logcat -d -s AndroidRuntime:E | grep -A30 "FATAL"
+
+# Lihat log spesifik app
+adb logcat -d --pid=$(adb shell pidof com.example.ganambro)
+
+# Clear log dan lihat real-time
+adb logcat -c && adb logcat -s AndroidRuntime:E
+```
+
 ## Workflow Build & Run Lengkap
 
 ```bash
