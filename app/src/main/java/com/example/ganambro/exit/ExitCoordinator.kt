@@ -2,6 +2,9 @@ package com.example.ganambro.exit
 
 import com.example.ganambro.audio.WarningSound
 import com.example.ganambro.audio.WarningSoundType
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 /**
  * Context from which exit is triggered — determines behaviour.
@@ -20,17 +23,20 @@ enum class ExitContext { Menu, Ujian }
 class ExitCoordinator(
     private val warningSound: WarningSound,
     private val onExit: () -> Unit,
-    private val requestConfirmation: (prompt: String) -> Boolean,
+    private val requestConfirmation: suspend (prompt: String) -> Boolean,
+    private val scope: CoroutineScope = CoroutineScope(Dispatchers.Main),
 ) {
 
     fun exit(from: ExitContext) {
         when (from) {
             ExitContext.Menu -> onExit()
             ExitContext.Ujian -> {
-                val confirmed = requestConfirmation("ketik exit untuk keluar")
-                if (confirmed) {
-                    warningSound.play(WarningSoundType.WS2)
-                    onExit()
+                scope.launch {
+                    val confirmed = requestConfirmation("ketik exit untuk keluar")
+                    if (confirmed) {
+                        warningSound.play(WarningSoundType.WS2)
+                        onExit()
+                    }
                 }
             }
         }

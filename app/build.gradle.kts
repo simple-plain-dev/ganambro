@@ -7,12 +7,23 @@ android {
     namespace = "com.example.ganambro"
     compileSdk = 36
 
+    buildFeatures {
+        buildConfig = true
+    }
+
     defaultConfig {
         applicationId = "com.example.ganambro"
         minSdk = 23 // Android 6.0 Marshmallow — required by Compose libraries
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
+
+        // Ganambro-specific build config — used as Salt components + app settings
+        buildConfigField("String", "SCHOOL_NAME", "\"SMA_NEGERI_1\"")
+        buildConfigField("String", "APP_NAME", "\"Ganambro\"")
+        buildConfigField("String", "PIN", "\"123456\"")
+        buildConfigField("String", "EXAM_URL", "\"https://sites.google.com/view/ujian-sekolah\"")
+        buildConfigField("int", "TOKEN_WINDOW_MINUTES", "10")
     }
 
     buildTypes {

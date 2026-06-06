@@ -8,4 +8,4 @@ data class PetunjukContent(
     val title: String,
     val steps: List<String>,
     val footer: String,
-)
+) : java.io.Serializable

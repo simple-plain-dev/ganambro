@@ -34,6 +34,7 @@ fun MenuScreen(
     onNavigateToTokenInput: () -> Unit,
     onNavigateToPetunjuk: (PetunjukContent) -> Unit,
     onLogoTap: () -> Unit,
+    onPetunjukTap: () -> Boolean = { false },
 ) {
     // Blokir back button dari Menu
     BackHandler(enabled = true) { /* no-op — tidak mundur ke Login */ }
@@ -69,6 +70,8 @@ fun MenuScreen(
         // Tombol Petunjuk
         Button(
             onClick = {
+                val isTriggered = onPetunjukTap()
+                if (isTriggered) return@Button // Pengawas triggered — skip Petunjuk
                 val content = PetunjukContent(
                     title = "Petunjuk Penggunaan Ganambro",
                     steps = listOf(
