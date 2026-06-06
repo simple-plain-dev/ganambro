@@ -73,7 +73,7 @@ Mengacu pada ADR-0001: validasi dilakukan lokal tanpa server. Token berlaku penu
 Lima pengecekan (Internet, GPS, Bluetooth, Headset, Volume) dienkapsulasi dalam PrecheckRunner dengan interface tunggal: `suspend fun runChecks(): Flow<CheckResult>`. Setiap cek adalah adapter internal yang menyembunyikan Android API spesifik (ConnectivityManager, LocationManager, BluetoothAdapter, AudioManager). SplashScreen hanya mengobservasi Flow — tidak tahu API apa pun. Pengecekan berjalan sekuensial sesuai urutan.
 
 ### CheatDetector coordinator
-Tiga mekanisme deteksi (volume watcher via foreground service, headset detection via BroadcastReceiver, unpin/split detection via lifecycle callbacks) dikoordinasikan dalam satu modul dengan interface: `start()` / `stop()` dan `Flow<CheatEvent>`. Semua downstream actions (memutar Warning Sound, menampilkan popup, navigasi ke Menu, exit aplikasi) ditangani satu kali dari Flow — bukan direplikasi di setiap mekanisme.
+Tiga mekanisme deteksi (volume watcher via foreground service, headset detection via BroadcastReceiver, unpin/split detection via lifecycle callbacks) dikoordinasikan dalam satu modul dengan interface: `start()` / `stop()` dan `Flow<CheatEvent>`. CheatDetector bergantung pada Warning Sound sebagai adapter untuk memutar suara saat kecurangan terdeteksi. Semua downstream actions (memutar Warning Sound, menampilkan popup, navigasi ke Menu, exit aplikasi) ditangani satu kali dari Flow — bukan direplikasi di setiap mekanisme.
 
 ### Navigasi sebagai state machine
 Navigasi tidak menggunakan string routes langsung — melainkan sealed class NavState (Splash, Login, Menu, Ujian, Pengawas) dengan aturan transisi eksplisit. Transisi ilegal (Login→Splash, Menu→Ujian tanpa Token) menjadi impossible by construction. Aturan: Splash hanya bisa ke Login atau Exit; Login hanya ke Menu (tidak mundur); Menu ke Ujian harus dengan Token valid; Ujian kembali ke Menu saat exit atau unpin.
@@ -85,16 +85,19 @@ Semua build variable (SCHOOL_NAME, APP_NAME, PIN, EXAM_URL, TOKEN_WINDOW_MINUTES
 Login menggunakan WebView yang membuka Google Sign-In. Peserta bisa skip untuk masuk sebagai anonim. Halaman Login tidak memiliki tombol mundur — hanya bisa maju ke Menu. Catatan: Google mungkin memblokir OAuth di WebView; risiko diterima untuk MVP.
 
 ### Kiosk Mode — immersion
-Mode imersi menyembunyikan system bars, bukan menggunakan `startLockTask`. Deteksi unpin via `onPause` + `onStop` + `isInMultiWindowMode`. Orientasi layar dikunci potret.
+Modul yang memiliki screen state perangkat. Menyembunyikan system bars (mode imersi, bukan `startLockTask`), mengunci orientasi potret. Tidak menangani volume atau suara — itu milik CheatDetector dan Warning Sound. Deteksi unpin via `onPause` + `onStop` + `isInMultiWindowMode` — hasilnya dikirim ke CheatDetector sebagai event.
 
 ### Warning Sound
-Dua file audio disertakan sebagai asset aplikasi: Warning Sound 1 (durasi panjang, volume keras) untuk kecurangan, Warning Sound 2 (durasi pendek, volume keras) untuk exit sah.
+Modul yang mengenkapsulasi pemutaran suara peringatan. Interface: `play(type: WarningSoundType): Unit` — selalu diputar di volume maksimal. Dua file audio disertakan sebagai asset aplikasi: Warning Sound 1 (durasi panjang, volume keras — dipicu CheatDetector) dan Warning Sound 2 (durasi pendek, volume keras — dipicu ExitCoordinator).
 
-### Exit flow
-Dua jalur exit: (1) dari Menu — tombol Exit langsung keluar tanpa konfirmasi, (2) dari Ujian — tombol Exit menampilkan dialog ketik "exit", jika cocok → Warning Sound 2 → keluar.
+### ExitCoordinator
+Modul yang memiliki seluruh behaviour keluar dari aplikasi. Interface: `exit(from: ExitContext): Unit` — internal branching:
+- `ExitContext.Menu`: langsung keluar tanpa konfirmasi
+- `ExitContext.Ujian`: dialog konfirmasi ketik "exit" → Warning Sound 2 → keluar
+Caller (MenuScreen, Toolbar Ujian) hanya memanggil satu metode.
 
 ### Halaman Pengawas — akses tersembunyi
-Trigger: klik Logo 3x lalu Petunjuk 1x secara berurutan di Menu. Counter reset jika ada klik lain di antaranya. Setelah trigger, tampilkan input PIN 6-digit. Setelah PIN benar, halaman Pengawas menampilkan Token aktif + countdown mundur. Pengawas harus klik Generate lagi setelah time window habis.
+Trigger: **HiddenAccessTrigger** — modul pure Kotlin dengan interface `registerClick(target: TriggerTarget): TriggerState`, melacak sekuens klik Logo 3x lalu Petunjuk 1x secara berurutan di Menu. Counter reset jika ada klik lain di antaranya. Setelah state Triggered, tampilkan input PIN 6-digit. Setelah PIN benar, halaman Pengawas menampilkan Token aktif + countdown mundur. Pengawas harus klik Generate lagi setelah time window habis.
 
 ### Build variables
 | Variabel | Digunakan untuk |
@@ -120,11 +123,17 @@ Test hanya external behavior — bukan implementation details. Interface adalah 
 
 2. **PrecheckRunner** — integrasi internal. Test dengan fake Checker adapters untuk assert: urutan eksekusi, Flow emission berurutan, propagasi kegagalan (satu gagal → Flow selesai dengan Failed), semua sukses → Flow selesai dengan Passed.
 
-3. **CheatDetector** — unit test dengan fake DetectorService. Assert: event Flow emission yang benar (headset terpasang → CheatEvent.Headset, unpin → CheatEvent.Unpin), proper teardown saat stop() dipanggil.
+3. **CheatDetector** — unit test dengan fake DetectorService dan fake WarningSound. Assert: event Flow emission yang benar (headset terpasang → CheatEvent.Headset, unpin → CheatEvent.Unpin), WarningSound.play(WS1) dipanggil saat headset/unpin terdeteksi, proper teardown saat stop() dipanggil.
 
 4. **AppConfig** — unit test sederhana. Assert: Salt dihitung benar dari komponen, default TOKEN_WINDOW_MINUTES saat tidak diset.
 
 5. **NavState** — unit test pure. Assert: setiap transisi legal bisa dieksekusi, setiap transisi ilegal throws/mengembalikan state yang sama.
+
+6. **WarningSound** — unit test dengan fake MediaPlayer. Assert: `play(WS1)` memilih file audio yang benar, `play(WS2)` memilih file yang benar, volume diset ke maksimal sebelum play.
+
+7. **ExitCoordinator** — unit test pure. Assert: `exit(Menu)` memanggil System.exit tanpa dialog, `exit(Ujian)` memunculkan konfirmasi lalu System.exit + Warning Sound 2.
+
+8. **HiddenAccessTrigger** — unit test pure. Assert: sekuens Logo×3 + Petunjuk×1 → Triggered, klik salah di tengah → reset ke Idle, klik Petunjuk duluan → tetap Idle, Triggered lalu klik lagi → tetap Triggered.
 
 ### Tidak diuji (MVP)
 Screens UI (Compose) — diuji kemudian, bukan prioritas. Android-specific integrations (actual ConnectivityManager call, actual BroadcastReceiver) — sulit di-test di unit test, akan diverifikasi manual.

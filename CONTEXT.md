@@ -36,18 +36,21 @@ Serangkaian pemeriksaan kondisi perangkat yang berjalan sekuensial di halaman Sp
 _Avoid_: System check, validation
 
 **Kiosk Mode**:
-Status perangkat saat Ujian berlangsung. System bars disembunyikan (mode imersi), navigasi sistem diblokir, dan Deteksi Kecurangan aktif.
+Modul yang memiliki screen state perangkat selama Ujian. Tanggung jawab: menyembunyikan system bars (mode imersi), mengunci orientasi potret. Tidak menangani volume atau suara — itu milik CheatDetector dan Warning Sound.
 _Avoid_: Lockdown mode, exam mode
 
-**Deteksi Kecurangan**:
-Pemantauan kondisi perangkat selama Ujian. Mencakup tiga pemicu:
+**CheatDetector**:
+Modul coordinator yang memantau kondisi perangkat selama Ujian. Interface: `start()` / `stop()` dan `Flow<CheatEvent>`. Mencakup tiga pemicu:
 - **Volume turun**: volume dipaksa kembali ke maksimal secara otomatis
 - **Headset terpasang**: aplikasi langsung keluar + Warning Sound 1
 - **Unpin / Split Screen**: Peserta meninggalkan aplikasi atau membuka layar terpisah → popup peringatan + Warning Sound 1 → kembali ke Menu
+CheatDetector bergantung pada Warning Sound sebagai adapter untuk memutar suara.
 _Avoid_: Cheat detection, integrity check
 
 **Warning Sound**:
-Suara peringatan yang berbunyi saat kecurangan terdeteksi. Ada dua jenis: Warning Sound 1 (durasi panjang, volume keras — kecurangan terdeteksi) dan Warning Sound 2 (durasi pendek, volume keras — Peserta keluar dari Ujian).
+Modul yang mengenkapsulasi pemutaran suara peringatan. Interface: `play(type: WarningSoundType)` — selalu diputar di volume maksimal. Dua jenis:
+- **Warning Sound 1**: durasi panjang, volume keras — dipicu CheatDetector saat kecurangan terdeteksi
+- **Warning Sound 2**: durasi pendek, volume keras — dipicu ExitCoordinator saat Peserta keluar dari Ujian
 _Avoid_: Alarm, alert
 
 **Splash**:
@@ -62,14 +65,22 @@ Halaman utama setelah Login. Berisi tombol Ujian (menuju Situs Ujian), tombol Pe
 **Situs Ujian**:
 Halaman Google Sites yang menjadi landing page Ujian, berisi kumpulan link Google Form. Peserta menavigasi antar Form menggunakan Toolbar Ujian.
 
-**Exit**:
-Mekanisme keluar dari aplikasi. Ada dua jalur: (1) dari Menu via tombol Exit — langsung keluar tanpa konfirmasi, (2) dari Ujian via toolbar Exit — ketik "exit" untuk konfirmasi, Warning Sound 2 berbunyi, lalu aplikasi keluar.
+**ExitCoordinator**:
+Modul yang memiliki seluruh behaviour keluar dari aplikasi. Interface: `exit(from: ExitContext)` — internal branching menangani perbedaan antara:
+- **Menu**: langsung keluar tanpa konfirmasi
+- **Ujian**: dialog konfirmasi ketik "exit" → Warning Sound 2 → keluar
+Caller (MenuScreen, Toolbar Ujian) hanya memanggil satu metode.
+_Avoid_: Exit handler, quit manager
 
 **Toolbar Ujian**:
-Bar navigasi di halaman Ujian berisi empat tombol: Home (kembali ke URL soal awal), Back (mundur satu halaman), Forward (maju satu halaman), Exit (keluar Ujian). Tidak ada URL bar — navigasi terbatas pada tombol-tombol ini.
+Bar navigasi di halaman Ujian berisi empat tombol: Home (kembali ke URL soal awal), Back (mundur satu halaman), Forward (maju satu halaman), Exit (keluar Ujian — didelegasikan ke ExitCoordinator). Tidak ada URL bar — navigasi terbatas pada tombol-tombol ini.
 
 **Petunjuk**:
-Halaman panduan langkah-demi-langkah penggunaan aplikasi untuk Peserta.
+Halaman panduan langkah-demi-langkah penggunaan aplikasi untuk Peserta. Konten dipisahkan dari rendering: `PetunjukContent` data class (judul, langkah-langkah, footer) dibaca dari resource; PetunjukScreen menerima konten sebagai parameter.
+
+**HiddenAccessTrigger**:
+Modul pure Kotlin yang mengenkapsulasi state machine akses tersembunyi ke halaman Pengawas. Interface: `registerClick(target: TriggerTarget): TriggerState` — melacak sekuens klik (Logo 3x lalu Petunjuk 1x), reset jika klik lain di antaranya. State: Idle, Counting(logoCount), Triggered.
+_Avoid_: Secret knock, hidden menu detector
 
 **Anonim**:
 Status Peserta yang memilih skip di halaman Login. Peserta Anonim tidak tertaut akun Google manapun; Google Form tidak mengenali identitasnya.
