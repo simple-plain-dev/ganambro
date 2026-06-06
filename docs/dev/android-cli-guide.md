@@ -88,31 +88,37 @@ adb logcat -s Ganambro
 adb logcat -d -t 50
 ```
 
-### Layout Inspection (tanpa Android Studio)
+### Layout Inspection (android CLI — direkomendasikan)
 
 ```bash
-# Dump layout hierarchy sebagai XML
+# Lihat layout tree dalam format JSON yang sudah di-prettify
+android layout --pretty
+
+# Cek perubahan layout sejak dump terakhir (berguna untuk animasi/transisi)
+android layout --diff
+
+# Simpan ke file
+android layout -o layout.json --pretty
+
+# Contoh output:
+# [
+#   {
+#     "text": "Login Screen (coming soon)",
+#     "center": "[540,1200]",
+#     "key": 3506402
+#   }
+# ]
+
+# Klik elemen di koordinat center
+adb shell input tap 540 1200
+```
+
+### Layout Inspection (XML manual — fallback)
+
+```bash
 adb shell uiautomator dump
-
-# Pull layout file dari device (gunakan MSYS_NO_PATHCONV di Git Bash)
 MSYS_NO_PATHCONV=1 adb pull /sdcard/window_dump.xml layout.xml
-
-# Prettify XML untuk dibaca manual
-python -c "
-import xml.dom.minidom as md
-dom = md.parse('layout.xml')
-print(dom.toprettyxml(indent='  '))
-" > layout-pretty.xml
-
-# Cari teks/node spesifik
 grep -oP 'text="[^"]*"' layout.xml
-grep -oP 'bounds="\[[^\]]+\]"' layout.xml
-
-# Klik elemen di koordinat tertentu (dari bounds)
-adb shell input tap 540 562
-
-# Klik elemen berdasarkan teks (Android 12+)
-adb shell input keyevent KEYCODE_TAB  # navigasi focus
 ```
 
 ### Debugging Crash
