@@ -9,7 +9,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.ganambro"
-        minSdk = 21 // Android 5.0 Lollipop — 99% coverage
+        minSdk = 23 // Android 6.0 Marshmallow — required by Compose libraries
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
