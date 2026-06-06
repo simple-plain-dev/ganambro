@@ -41,14 +41,14 @@ _Avoid_: Lockdown mode, exam mode
 
 **CheatDetector**:
 Modul coordinator yang memantau kondisi perangkat selama Ujian. Interface: `start()` / `stop()` dan `Flow<CheatEvent>`. Mencakup tiga pemicu:
-- **Volume turun**: volume dipaksa kembali ke maksimal secara otomatis
+- **Volume turun**: volume dipaksa kembali ke maksimal secara otomatis (CheatDetector memiliki background volume enforcement)
 - **Headset terpasang**: aplikasi langsung keluar + Warning Sound 1
 - **Unpin / Split Screen**: Peserta meninggalkan aplikasi atau membuka layar terpisah → popup peringatan + Warning Sound 1 → kembali ke Menu
 CheatDetector bergantung pada Warning Sound sebagai adapter untuk memutar suara.
 _Avoid_: Cheat detection, integrity check
 
 **Warning Sound**:
-Modul yang mengenkapsulasi pemutaran suara peringatan. Interface: `play(type: WarningSoundType)` — selalu diputar di volume maksimal. Dua jenis:
+Modul yang mengenkapsulasi pemutaran suara peringatan. Interface: `play(type: WarningSoundType)` — selalu diputar di volume maksimal (invariant internal modul). Dua jenis:
 - **Warning Sound 1**: durasi panjang, volume keras — dipicu CheatDetector saat kecurangan terdeteksi
 - **Warning Sound 2**: durasi pendek, volume keras — dipicu ExitCoordinator saat Peserta keluar dari Ujian
 _Avoid_: Alarm, alert

@@ -88,7 +88,7 @@ Login menggunakan WebView yang membuka Google Sign-In. Peserta bisa skip untuk m
 Modul yang memiliki screen state perangkat. Menyembunyikan system bars (mode imersi, bukan `startLockTask`), mengunci orientasi potret. Tidak menangani volume atau suara — itu milik CheatDetector dan Warning Sound. Deteksi unpin via `onPause` + `onStop` + `isInMultiWindowMode` — hasilnya dikirim ke CheatDetector sebagai event.
 
 ### Warning Sound
-Modul yang mengenkapsulasi pemutaran suara peringatan. Interface: `play(type: WarningSoundType): Unit` — selalu diputar di volume maksimal. Dua file audio disertakan sebagai asset aplikasi: Warning Sound 1 (durasi panjang, volume keras — dipicu CheatDetector) dan Warning Sound 2 (durasi pendek, volume keras — dipicu ExitCoordinator).
+Modul yang mengenkapsulasi pemutaran suara peringatan. Interface: `play(type: WarningSoundType): Unit` — volume maksimal adalah invariant internal modul, bukan tanggung jawab caller. Dua file audio disertakan sebagai asset aplikasi: Warning Sound 1 (durasi panjang, volume keras — dipicu CheatDetector) dan Warning Sound 2 (durasi pendek, volume keras — dipicu ExitCoordinator).
 
 ### ExitCoordinator
 Modul yang memiliki seluruh behaviour keluar dari aplikasi. Interface: `exit(from: ExitContext): Unit` — internal branching:
@@ -129,7 +129,7 @@ Test hanya external behavior — bukan implementation details. Interface adalah 
 
 5. **NavState** — unit test pure. Assert: setiap transisi legal bisa dieksekusi, setiap transisi ilegal throws/mengembalikan state yang sama.
 
-6. **WarningSound** — unit test dengan fake MediaPlayer. Assert: `play(WS1)` memilih file audio yang benar, `play(WS2)` memilih file yang benar, volume diset ke maksimal sebelum play.
+6. **WarningSound** — unit test dengan fake MediaPlayer. Assert: `play(WS1)` memilih file audio yang benar, `play(WS2)` memilih file yang benar, volume media player diset ke maksimal sebelum play (tanpa caller yang set).
 
 7. **ExitCoordinator** — unit test pure. Assert: `exit(Menu)` memanggil System.exit tanpa dialog, `exit(Ujian)` memunculkan konfirmasi lalu System.exit + Warning Sound 2.
 
